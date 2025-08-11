@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contact / Account Help</title>
+  <style>
+    :root { --radius: 16px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7f9; padding:24px; }
+    .card { max-width: 520px; margin: 72px auto 0; background:#fff; border-radius:var(--radius); padding:24px; box-shadow:0 6px 24px rgba(0,0,0,.08); }
+    label { display:block; font-weight:600; margin:14px 0 6px; }
+    input, textarea, select { width:100%; padding:11px 12px; border:1px solid #d6d8dd; border-radius:10px; font-size:16px; }
+    button { margin-top:16px; width:100%; padding:12px 14px; border:0; border-radius:12px; background:#111827; color:#fff; font-weight:600; font-size:16px; cursor:pointer; }
+    .hint { color:#6b7280; font-size:13px; margin-top:4px; }
+    .fineprint { color:#6b7280; font-size:12px; margin-top:12px; }
+    .hidden { display:none !important; }
+
+    /* Top banner */
+    .banner {
+      position: fixed; left: 50%; top: 16px; transform: translateX(-50%) translateY(-24px);
+      min-width: 320px; max-width: 680px;
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.12);
+      opacity: 0; pointer-events: none; z-index: 9999;
+      transition: transform .35s ease, opacity .35s ease;
+    }
+    .banner--show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+    .banner--success { background: #ecfdf5; border: 1px solid #34d399; color: #064e3b; }
+    .banner--error { background: #fef2f2; border: 1px solid #f87171; color: #7f1d1d; }
+    .banner__icon { font-size: 18px; }
+    .banner__text { flex: 1; }
+    .banner__close {
+      background: transparent; border: 0; font-size: 18px; line-height: 1; cursor: pointer;
+      color: inherit; padding: 4px 6px; border-radius: 8px;
+    }
+    .banner__close:focus { outline: 2px solid currentColor; outline-offset: 2px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .banner { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Top banner (hidden by default) -->
+  <div id="banner" class="banner" role="status" aria-live="polite" aria-atomic="true">
+    <span id="bannerIcon" class="banner__icon" aria-hidden="true">✅</span>
+    <span id="bannerText" class="banner__text"></span>
+    <button id="bannerClose" class="banner__close" aria-label="Close notification">✖</button>
+  </div>
+
+  <div class="card">
+    <h1>Contact / Account Help</h1>
+    <p class="hint">Tell us how we can help. Please <strong>don’t include passwords</strong> or sensitive info.</p>
+
+    <form id="contactForm">
+      <label for="name">Your name</label>
+      <input id="name" name="name" type="text" placeholder="Ada Lovelace" required />
+
+      <label for="email">Your email</label>
+      <input id="email" name="email" type="email" placeholder="you@example.com" required />
+
+      <label for="topic">Topic</label>
+      <select id="topic" name="topic" required>
+        <option value="">Choose one…</option>
+        <option>General question</option>
+        <option>Billing</option>
+        <option>Account access help</option>
+        <option>Bug report</option>
+        <option>Other</option>
+      </select>
+
+      <label for="message">Message</label>
+      <textarea id="message" name="message" rows="5" placeholder="What’s going on?" required></textarea>
+
+      <input type="hidden" name="subject" value="New support request from website" />
+
+      <!-- Honeypot -->
+      <div class="hidden" aria-hidden="true">
+        <label for="company">Company (leave blank)</label>
+        <input id="company" name="company" type="text" tabindex="-1" autocomplete="off" />
+      </div>
+
+      <button type="submit">Send</button>
+      <p class="fineprint">By submitting, you agree to our terms and acknowledge we’ll email you back about your request.</p>
+    </form>
+  </div>
+
+  <script>
+    (function() {
+      const banner = document.getElementById("banner");
+      const icon = document.getElementById("bannerIcon");
+      const text = document.getElementById("bannerText");
+      const close = document.getElementById("bannerClose");
+      let hideTimer = null;
+
+      function showBanner(type, message, { duration = 4500 } = {}) {
+        if (hideTimer) clearTimeout(hideTimer);
+        banner.classList.remove("banner--success", "banner--error");
+        banner.classList.add(type === "error" ? "banner--error" : "banner--success");
+        icon.textContent = type === "error" ? "⚠️" : "✅";
+        text.textContent = message;
+        banner.classList.add("banner--show");
+        hideTimer = setTimeout(() => {
+          banner.classList.remove("banner--show");
+        }, duration);
+      }
+
+      close.addEventListener("click", () => banner.classList.remove("banner--show"));
+      window.__showBanner = showBanner;
+    })();
+
+    document.getElementById("contactForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+
+      try {
+        const resp = await fetch("https://formspree.io/f/abcd1234", {
+          method: "POST",
+          body: data,
+          headers: { Accept: "application/json" }
+        });
+
+        if (resp.ok) {
+          form.reset();
+          window.__showBanner("success", "Thanks! Your message has been sent.");
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          const msg = err && err.errors ? err.errors.map(e => e.message).join(", ") : "Something went wrong. Please try again.";
+          window.__showBanner("error", msg);
+        }
+      } catch {
+        window.__showBanner("error", "Network error. Check your connection and try again.");
+      }
+    });
+  </script>
+</body>
+</html>
